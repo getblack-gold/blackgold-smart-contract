@@ -4,16 +4,16 @@ mod internal_lib;
 
 use ::internal_lib::Organisation;
 
-use std::auth::{ AuthError, msg_sender , };
+use std::auth::{ AuthError, msg_sender };
 use std::storage::storage_vec::*;
 use std::hash::{keccak256, sha256}; 
 use std::logging::log;
 
 storage {
     shop_id_to_organisation_struct: StorageMap<u64, Organisation> = StorageMap {},
-    map: StorageMap<u64, StorageVec<str[1]>> = StorageMap {},
+    organisation_sellers: StorageMap<u64, StorageVec<str[1]>> = StorageMap {},
     organisation_counter: u64 = 0,
-    
+    user_org_to_points: StorageMap<(Identity, u64), u64> = StorageMap {}
 }
 
 
@@ -33,20 +33,41 @@ abi BlackGold {
    /* #[storage(read)]
     fn get_organisation_seller(index: u64, org: str[40]) -> bool;*/
 
-
     #[storage(read, write)]
     fn add_member(org_id: str[1], seller_id: u64);
 
     #[storage(read, write)]
     fn push_new_seller_to_org(id: u64, seller: str[1]);
+
+    #[storage(read, write)]
+    fn update_user_to_org(id: u64, new_value: u64) -> u64;
+
+    #[storage(read,write)]
+    fn user_use_points(id: u64, points_spent: u64) -> u64;
 }
 
 
 impl BlackGold for Contract {
+
+     #[storage(read,write)]
+    fn user_use_points(id: u64, points_spent: u64) -> u64 {
+        let user_points = storage.user_org_to_points.get((msg_sender().unwrap() ,id)).try_read().unwrap_or(0);
+        let user_points_updated = user_points - points_spent; 
+        storage.user_org_to_points.insert((msg_sender().unwrap(), id), user_points_updated);
+        return user_points_updated;
+    }
+
+    #[storage(read, write)]
+    fn update_user_to_org(id: u64, new_value: u64) -> u64 {
+        let user_point = storage.user_org_to_points.get((msg_sender().unwrap() ,id)).try_read().unwrap_or(0);
+        let user_points_updated = user_point + new_value; 
+        storage.user_org_to_points.insert((msg_sender().unwrap(), id), user_points_updated);
+        return user_points_updated;
+    }
+
     #[storage(read, write)]
     fn push_new_seller_to_org(id: u64, seller: str[1]) {
-        storage.map.get(id).push(seller); 
-        
+        storage.organisation_sellers.get(id).push(seller); 
     }
 
     //Creates a new org and adds to (user can have multiple of them)
@@ -61,7 +82,7 @@ impl BlackGold for Contract {
         };
         let sellers: StorageVec<str[1]> =  StorageVec {};
         
-        storage.map.insert(storage.organisation_counter.read(), sellers);
+        storage.organisation_sellers.insert(storage.organisation_counter.read(), sellers);
         storage.shop_id_to_organisation_struct.insert(storage.organisation_counter.read(), org);
 
     }
