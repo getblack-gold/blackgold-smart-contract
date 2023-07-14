@@ -1,85 +1,119 @@
 contract;
 
-use std::auth::{ AuthError, msg_sender , };
+mod internal_lib;
 
+use ::internal_lib::Organisation;
+
+use std::auth::{ AuthError, msg_sender , };
+use std::storage::storage_vec::*;
+use std::hash::{keccak256, sha256}; 
+use std::logging::log;
 
 storage {
-    user_to_tokens: StorageMap<Identity, u64> = StorageMap {},
+    shop_id_to_organisation_struct: StorageMap<u64, Organisation> = StorageMap {},
+    map: StorageMap<u64, StorageVec<str[1]>> = StorageMap {},
+    organisation_counter: u64 = 0,
+    
 }
+
+
+
 
 
 abi BlackGold {
     #[storage(read, write)]
-    fn update_user_tokens(token_amount: u64) -> (u64);
-    #[storage(read)]
-    fn read_user_tokens() -> (u64);
+    fn new_organisation(creator_id: str[40]);
+
     #[storage(read, write)]
-    fn points_spent(points: u64) -> (u64);
+    fn add_member_organisation(creator_id: str[40] ,member_id: str[40]);
+
+    #[storage(read)]
+    fn get_organisation(org_id: u64) -> Organisation;
+
+   /* #[storage(read)]
+    fn get_organisation_seller(index: u64, org: str[40]) -> bool;*/
+
+
+    #[storage(read, write)]
+    fn add_member(org_id: str[1], seller_id: u64);
+
+    #[storage(read, write)]
+    fn push_new_seller_to_org(id: u64, seller: str[1]);
 }
 
 
 impl BlackGold for Contract {
-    //Will create a function that checks if the message sender is ok
-
     #[storage(read, write)]
-    fn update_user_tokens(token_amount: u64) -> (u64) {
-        std::logging::log("Hello there");
-
-        let mut amount: Option<u64>  = storage.user_to_tokens.get(msg_sender().unwrap());
+    fn push_new_seller_to_org(id: u64, seller: str[1]) {
+        storage.map.get(id).push(seller); 
         
-        if amount.unwrap_or(0) == 0 {
-            storage.user_to_tokens.insert(msg_sender().unwrap() , token_amount);
-            return token_amount;
-        }
-        else {
-            let updated_amount = amount.unwrap() + token_amount;
-            storage.user_to_tokens.insert(msg_sender().unwrap(), updated_amount);
-            return updated_amount;
-        }
     }
+
+    //Creates a new org and adds to (user can have multiple of them)
+    #[storage(read, write)]
+    fn new_organisation(creator_id: str[40]) {
+        storage.organisation_counter.write(storage.organisation_counter.read() + 1);
+        let mut org = Organisation {
+            id: storage.organisation_counter.read(),
+            owner: creator_id,
+            member_limit: 10,
+            exists: true,
+        };
+        let sellers: StorageVec<str[1]> =  StorageVec {};
+        
+        storage.map.insert(storage.organisation_counter.read(), sellers);
+        storage.shop_id_to_organisation_struct.insert(storage.organisation_counter.read(), org);
+
+    }
+
+
+
     #[storage(read)]
-    fn read_user_tokens() -> (u64) {
-        let user_token = storage.user_to_tokens.get(msg_sender().unwrap());
-        return user_token.unwrap();
+    fn get_organisation(org_id: u64) -> Organisation {
+        return storage.shop_id_to_organisation_struct.get(org_id).read();
     }
 
     #[storage(read, write)]
-    fn points_spent(points: u64) -> (u64) {
-        let amount: Option<u64>  = storage.user_to_tokens.get(msg_sender().unwrap());
-        if amount.unwrap_or(0) >= points {
-            let new_amount = amount.unwrap() - points;
-            storage.user_to_tokens.insert(msg_sender().unwrap(), new_amount);
-            return new_amount;
-        }
-        return amount.unwrap();
+    fn add_member_organisation(org_id: str[40], member_id: str[40]) {
     }
 
 
+    #[storage(read, write)]
+    fn add_member(org_id: str[1], seller_id: u64) {
+    }
+
+
+  /*  #[storage(read)]
+    fn get_organisation_seller(index: u64 , org: str[40]) -> bool {
+        let seller = storage.org_id_to_member.get((index, org)).read();
+        return seller.0;
+    }*/
+
+
 }
 
 #[test]
-fn call_update_user_tokens(){
+fn test_success_add_org() {
     let caller = abi(BlackGold, CONTRACT_ID);
-
-    let result = caller.update_user_tokens {}(64);
-    let result_update = caller.update_user_tokens {}(1);
-    assert(result_update == 65);
-
-
+    let result = caller.new_organisation {}("This is adasdfg string of 40 characters.");
+    let org = caller.get_organisation(1);
+    assert(org.exists == true);
 }
 
 #[test]
-fn call_view_user_tokens(){
+fn test_update_struct_values() {
     let caller = abi(BlackGold, CONTRACT_ID);
-    caller.update_user_tokens {}(64);
-    let result_view = caller.read_user_tokens {}();
-    assert(result_view == 64);
+    let result = caller.new_organisation {}("This is adasdfg string of 40 characters.");
+    let org = caller.get_organisation(1);
+    caller.add_member_organisation("This is adasdfg string of 40 characters.", "OpenAI's language model is q remarkable!");
+
 }
 
+
 #[test]
-fn call_points_spent() {
+fn test_push_func() { 
     let caller = abi(BlackGold, CONTRACT_ID);
-    caller.update_user_tokens {}(64);
-    let result = caller.points_spent {}(4);
-    assert(result == 60);
+    let result = caller.new_organisation {}("This is adasdfg string of 40 characters.");
+    caller.push_new_seller_to_org(1, "a");
+
 }
