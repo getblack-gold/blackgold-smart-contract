@@ -1,7 +1,5 @@
 library;
 
-use std::storage::storage_vec::*;
-
 pub struct Organisation {
     id: u64,
     owner: str[40],

@@ -5,7 +5,6 @@ mod internal_lib;
 use ::internal_lib::Organisation;
 
 use std::auth::{ AuthError, msg_sender };
-use std::storage::storage_vec::*;
 use std::hash::{keccak256, sha256}; 
 use std::logging::log;
 
@@ -14,7 +13,8 @@ storage {
     shop_id_to_organisation_struct: StorageMap<u64, Organisation> = StorageMap {},
     organisation_id_to_sellers: StorageMap<u64, StorageVec<str[1]>> = StorageMap {},
     organisation_counter: u64 = 0,
-    user_org_to_points: StorageMap<(Identity, u64), u64> = StorageMap {}
+    user_org_to_points: StorageMap<(Identity, u64), u64> = StorageMap {},
+    organisation_id_to_tier_points: StorageMap<u64, StorageVec<(str[1], (u64, u64))>> = StorageMap {},
 }
 
 
@@ -52,10 +52,6 @@ abi BlackGold {
 
 
 impl BlackGold for Contract {
-
-
-    
-
     //Retrieves all sellers currently in the organisation
     #[storage(read, write)]
     fn retrieve_all_sellers_from_org(id: u64) -> Vec<str[1]> {
@@ -131,6 +127,14 @@ impl BlackGold for Contract {
 
        // } 
     }
+
+   /* #[storage(read, write)]
+    add_tier_points(org_id: u64, new_tier: Vec<(str[1], (u64, u64))>){
+        let mut i = 0;
+        while i < storage.organisation_id_to_tier_points.len() {
+            storage.organisation_id_to_tier_points.insert(new_tier.get(i));
+        }
+    }*/
 
 }
 
